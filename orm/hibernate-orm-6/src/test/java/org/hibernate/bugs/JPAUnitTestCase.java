@@ -36,7 +36,7 @@ public class JPAUnitTestCase {
     }
 
     @Test
-    public void hhh123Test() throws Exception {
+    public void hhh17776Test() throws Exception {
 
         EntityManager entityManager = entityManagerFactory.createEntityManager();
         entityManager.getTransaction().begin();
