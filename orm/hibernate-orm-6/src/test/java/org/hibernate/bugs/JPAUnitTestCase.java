@@ -5,17 +5,14 @@ import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Persistence;
 import jakarta.persistence.Tuple;
 import org.hibernate.Session;
+import org.hibernate.bugs.hhh18647.DemoEntity;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.hibernate.query.criteria.JpaCriteriaQuery;
 import org.hibernate.query.criteria.JpaSubQuery;
-import org.hibernate.query.sqm.tree.from.SqmFromClause;
-import org.hibernate.query.sqm.tree.select.SqmSubQuery;
-import org.hibernate.sql.ast.tree.cte.CteMaterialization;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Order;
 
 import java.util.List;
 import java.util.UUID;
@@ -33,6 +30,33 @@ public class JPAUnitTestCase {
     @After
     public void destroy() {
         entityManagerFactory.close();
+    }
+
+    @Test
+    public void hhh18647Test() throws Exception {
+        EntityManager entityManager = entityManagerFactory.createEntityManager();
+        entityManager.getTransaction().begin();
+
+        var cb = (HibernateCriteriaBuilder) entityManager.getCriteriaBuilder();
+        var insertCriteria = cb.createCriteriaInsertValues(DemoEntity.class);
+        insertCriteria.setInsertionTargetPaths(
+                insertCriteria.getTarget().get("id"),
+                // Here we'd like to insert into foreign key columns.
+                insertCriteria.getTarget().get("a").get("id"), // a_id
+                insertCriteria.getTarget().get("b").get("id"), // b_id
+                insertCriteria.getTarget().get("c").get("id")  // c_id
+        );
+        insertCriteria.values(cb.values(
+                cb.value(UUID.fromString("6a7078ef-d761-4e05-b743-0d4b9eb242cf")),
+                cb.value(1),
+                cb.value(2),
+                cb.value(3)
+        ));
+        entityManager.unwrap(Session.class).createMutationQuery(insertCriteria)
+                .executeUpdate(); // Not expecting multiple table references for an SQM INSERT-SELECT exception :(
+
+        entityManager.getTransaction().commit();
+        entityManager.close();
     }
 
     @Test
